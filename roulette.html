@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お題ルーレット｜ミニマルカフェ</title>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'BIZ UDGothic','Meiryo',sans-serif; }
+  body {
+    min-height: 100vh; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem; overflow: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; z-index: 0;
+    background: linear-gradient(
+      135deg,
+      #ffb8cc 0%, #ffb8cc 50%,
+      #b8d8f8 50%, #b8d8f8 100%
+    );
+  }
+  #layout {
+    position: relative; z-index: 1;
+    display: flex; align-items: center;
+    gap: clamp(1.5rem, 3vw, 3.5rem);
+    width: 100%; max-width: 1100px;
+  }
+  #left-panel {
+    flex: 0 0 clamp(240px, 32vw, 380px);
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1.2rem;
+  }
+  h1 {
+    font-size: clamp(36px, 5.5vw, 68px); font-weight: 700;
+    color: #fff; line-height: 1.15; letter-spacing: 0.05em;
+    text-shadow: 0 2px 12px rgba(180,80,100,0.2);
+  }
+  #result-area {
+    background: rgba(255,255,255,0.88);
+    border: 3px solid rgba(255,255,255,0.95);
+    border-radius: 18px; padding: 1.6rem 1.8rem;
+    width: 100%; min-height: 130px;
+    display: flex; flex-direction: column; justify-content: center;
+    opacity: 0; transition: opacity 0.5s;
+    box-shadow: 0 6px 30px rgba(180,80,100,0.1);
+  }
+  #result-area.show { opacity: 1; }
+  #result-text { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 700; color: #333; line-height: 1.45; }
+  #spinBtn {
+    background: #2c2c2c; color: #fff; border: none;
+    padding: 1.1rem 2.5rem; font-size: clamp(1.1rem, 2.2vw, 1.4rem);
+    font-weight: 700; letter-spacing: 0.2em; border-radius: 6px; cursor: pointer;
+    box-shadow: 0 5px 0 #111, 0 8px 24px rgba(0,0,0,0.18); width: 100%;
+    font-family: 'BIZ UDGothic','Meiryo',sans-serif;
+  }
+  #spinBtn:active { transform: translateY(4px); box-shadow: 0 1px 0 #111; }
+  #editBtn {
+    background: rgba(255,255,255,0.7); border: 2px solid rgba(255,255,255,0.95);
+    color: #555; padding: 0.7rem 1.2rem; font-size: 0.9rem; font-weight: 700;
+    border-radius: 6px; cursor: pointer; width: 100%;
+    font-family: 'BIZ UDGothic','Meiryo',sans-serif;
+  }
+  #editPanel {
+    display: none; width: 100%; background: rgba(255,255,255,0.95);
+    border: 1.5px solid rgba(255,255,255,0.95); border-radius: 10px; padding: 1rem;
+  }
+  #editPanel > p { font-size: 13px; font-weight: 700; color: #555; margin-bottom: 0.8rem; }
+  #topicList { list-style: none; max-height: 260px; overflow-y: auto; }
+  .topic-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .topic-row input {
+    flex: 1; padding: 6px 10px; font-size: 14px; font-weight: 700;
+    font-family: 'BIZ UDGothic','Meiryo',sans-serif;
+    border: 1.5px solid #ffb8cc; border-radius: 6px;
+    background: #fff; color: #333; outline: none;
+  }
+  .topic-row input:focus { border-color: #e07090; }
+  .topic-row .del { background: none; border: none; color: #ffb8cc; font-size: 20px; cursor: pointer; }
+  #addBtn {
+    width: 100%; border: 1.5px dashed #ffb8cc; background: none;
+    color: #e07090; padding: 0.45rem; font-size: 0.85rem; font-weight: 700;
+    border-radius: 6px; cursor: pointer; margin-top: 0.5rem;
+    font-family: 'BIZ UDGothic','Meiryo',sans-serif;
+  }
+  #applyBtn {
+    width: 100%; background: #2c2c2c; color: #fff; border: none;
+    padding: 0.7rem; font-size: 0.9rem; font-weight: 700;
+    border-radius: 6px; cursor: pointer; margin-top: 0.7rem;
+    font-family: 'BIZ UDGothic','Meiryo',sans-serif;
+  }
+  #wheel-area {
+    flex: 1 1 auto; min-width: 0; aspect-ratio: 1; position: relative;
+    max-width: min(65vw, calc(100vh - 4rem));
+    max-height: min(65vw, calc(100vh - 4rem)); width: 100%;
+  }
+  #outer-ring {
+    position: absolute; inset: 0; border-radius: 50%; background: #fff;
+    box-shadow: 0 0 0 5px rgba(255,255,255,0.7), 0 16px 60px rgba(180,80,100,0.15), 0 2px 12px rgba(180,80,100,0.08);
+  }
+  #wheelCanvas { position: absolute; top: 5%; left: 5%; width: 90%; height: 90%; border-radius: 50%; }
+  #ptr {
+    position: absolute; top: -18px; left: 50%; transform: translateX(-50%); z-index: 10;
+    width: 0; height: 0;
+    border-left: 16px solid transparent; border-right: 16px solid transparent;
+    border-top: 36px solid #2c2c2c;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.2));
+  }
+  #center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 18%; aspect-ratio: 1; background: #2c2c2c; border-radius: 50%;
+    border: 5px solid #fff; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: clamp(12px,2vw,18px); font-weight: 700;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2); cursor: pointer;
+  }
+  @media (max-width:640px) {
+    body { padding: 1rem; align-items: flex-start; }
+    #layout { flex-direction: column-reverse; align-items: center; gap: 1.2rem; }
+    #left-panel { align-items: center; width: 100%; flex: none; }
+    h1 { text-align: center; }
+    #wheel-area { max-width: 92vw; max-height: 92vw; }
+  }
+</style>
+</head>
+<body>
+<div id="layout">
+  <div id="left-panel">
+    <h1>お題<br>ルーレット</h1>
+    <div id="result-area"><div id="result-text"></div></div>
+    <button id="spinBtn">まわす</button>
+    <button id="editBtn">✎ お題を編集する</button>
+    <div id="editPanel">
+      <p>お題リストを編集</p>
+      <ul id="topicList"></ul>
+      <button id="addBtn">＋ お題を追加</button>
+      <button id="applyBtn">ルーレットを更新</button>
+    </div>
+  </div>
+  <div id="wheel-area">
+    <div id="outer-ring"></div>
+    <canvas id="wheelCanvas"></canvas>
+    <div id="ptr"></div>
+    <div id="center">START</div>
+  </div>
+</div>
+<script>
+let topics = [
+  "持っていてよかったもの","手放してよかったもの",
+  "ミニマリストになったきっかけ","絶対に手放せないもの",
+  "買いたいけど迷っているもの","部屋づくりのコツ",
+  "ミニマリストあるある","スマホも断捨離してる？",
+  "人間関係も引き算してる？","ミニマルな暮らしで変わったこと"
+];
+const SLICE=["#fce4e8","#fff","#fce4e8","#fff","#fce4e8","#fff","#fce4e8","#fff","#fce4e8","#fff"];
+const TCLR=Array(10).fill("#d06070");
+const FONT="'BIZ UDGothic','Meiryo',sans-serif";
+const cvs=document.getElementById('wheelCanvas'),wCtx=cvs.getContext('2d');
+let SZ=0,angle=0,spinning=false,velocity=0;
+function resize(){SZ=cvs.offsetWidth;cvs.width=SZ;cvs.height=SZ;drawWheel(angle);}
+function drawWheel(rot){
+  const n=topics.length,arc=(2*Math.PI)/n,cx=SZ/2,cy=SZ/2,r=SZ/2-1;
+  wCtx.clearRect(0,0,SZ,SZ);
+  for(let i=0;i<n;i++){
+    const s=rot+i*arc,e=s+arc;
+    wCtx.beginPath();wCtx.moveTo(cx,cy);wCtx.arc(cx,cy,r,s,e);wCtx.closePath();
+    wCtx.fillStyle=SLICE[i%SLICE.length];wCtx.fill();
+    wCtx.strokeStyle='rgba(240,190,200,0.8)';wCtx.lineWidth=2.5;wCtx.stroke();
+    wCtx.save();wCtx.translate(cx,cy);wCtx.rotate(s+arc/2);
+    wCtx.textAlign='right';wCtx.fillStyle=TCLR[i%TCLR.length];
+    const fs=Math.max(12,Math.floor(SZ*0.034));
+    wCtx.font='bold '+fs+'px '+FONT;
+    const t=topics[i],mw=r-32;
+    const lines=wCtx.measureText(t).width<=mw?[t]:[t.slice(0,Math.ceil(t.length/2)),t.slice(Math.ceil(t.length/2))];
+    const lh=fs*1.6,sy=-(lines.length*lh)/2+lh*0.5;
+    lines.forEach((l,li)=>wCtx.fillText(l,r-16,sy+li*lh));
+    wCtx.restore();
+  }
+  wCtx.beginPath();wCtx.arc(cx,cy,SZ*0.09,0,Math.PI*2);
+  wCtx.fillStyle='#2c2c2c';wCtx.fill();wCtx.strokeStyle='#fff';wCtx.lineWidth=5;wCtx.stroke();
+}
+function getResult(rot){const n=topics.length,arc=(2*Math.PI)/n;const norm=(((-rot-Math.PI/2)%(2*Math.PI))+2*Math.PI)%(2*Math.PI);return topics[Math.floor(norm/arc)%n];}
+function animate(){if(velocity>0.003){angle+=velocity;velocity*=0.984;drawWheel(angle);requestAnimationFrame(animate);}else{spinning=false;spinBtn.textContent='もう一回';spinBtn.onclick=handleSpin;document.getElementById('result-text').textContent=getResult(angle);document.getElementById('result-area').classList.add('show');}}
+const spinBtn=document.getElementById('spinBtn');
+function handleSpin(){if(spinning)return;spinning=true;document.getElementById('result-area').classList.remove('show');spinBtn.textContent='ストップ';spinBtn.onclick=stopSpin;velocity=0.26+Math.random()*0.14;setTimeout(()=>{if(spinning)stopSpin();},3000+Math.random()*3000);requestAnimationFrame(animate);}
+function stopSpin(){if(!spinning)return;velocity=0.07+Math.random()*0.04;spinBtn.onclick=handleSpin;}
+function renderList(){const ul=document.getElementById('topicList');ul.innerHTML='';topics.forEach((t,i)=>{const li=document.createElement('li');li.className='topic-row';const inp=document.createElement('input');inp.type='text';inp.value=t;inp.maxLength=20;inp.id='ti'+i;const del=document.createElement('button');del.className='del';del.textContent='×';del.onclick=()=>{if(topics.length<=3)return;topics.splice(i,1);renderList();};li.appendChild(inp);li.appendChild(del);ul.appendChild(li);});}
+spinBtn.onclick=handleSpin;
+document.getElementById('center').onclick=handleSpin;
+document.getElementById('editBtn').onclick=()=>{const p=document.getElementById('editPanel');p.style.display=p.style.display==='none'?'block':'none';if(p.style.display==='block')renderList();};
+document.getElementById('addBtn').onclick=()=>{if(topics.length>=12)return;topics.push('新しいお題');renderList();const last=document.getElementById('ti'+(topics.length-1));last.focus();last.select();};
+document.getElementById('applyBtn').onclick=()=>{const inputs=document.querySelectorAll('#topicList input');const next=[...inputs].map(i=>i.value.trim()).filter(Boolean);if(next.length<3)return;topics=next;drawWheel(angle);document.getElementById('editPanel').style.display='none';document.getElementById('result-area').classList.remove('show');};
+window.addEventListener('resize',()=>setTimeout(resize,50));setTimeout(resize,100);
+</script>
+</body>
+</html>
