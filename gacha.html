@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ガチャポン｜ミニマルカフェ</title>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:'BIZ UDGothic','Meiryo',sans-serif; }
+
+body {
+  min-height: 100vh;
+  height: 100vh;
+  background: #ffffff;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem 2rem;
+  overflow: hidden;
+}
+
+/* PC横並びレイアウト */
+#page-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5rem, 9vw, 12rem);
+  width: 100%;
+  max-width: 1300px;
+  height: 100%;
+}
+
+/* 左パネル：中央揃え */
+#left-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex: 0 0 auto;
+  width: clamp(280px, 32vw, 460px);
+  text-align: center;
+}
+
+h1 {
+  font-size: clamp(48px, 5.5vw, 96px); font-weight: 700;
+  color: #c43050; letter-spacing: 0.08em;
+  margin-bottom: 4rem;
+  white-space: nowrap;
+  text-align: center;
+}
+
+
+#machine-wrap {
+  position: relative;
+  width: clamp(220px, 46vh, 460px);
+  max-height: 90vh;
+  flex-shrink: 0;
+  filter: drop-shadow(6px 12px 24px rgba(0,0,0,0.22));
+  overflow: visible;
+}
+
+/* ===== 転がるボール ===== */
+#rolling-ball {
+  position: fixed;
+  display: none;
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  z-index: 200;
+  pointer-events: none;
+}
+
+/* ===== 開くボール（大きく・前に出る） ===== */
+#open-ball-wrap {
+  position: fixed;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  z-index: 300;
+  pointer-events: none;
+  /* 前に出てくる3D感 */
+  transform: scale(0.3);
+  transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s;
+}
+#open-ball-wrap.pop {
+  transform: scale(1.4);
+}
+.ball-half {
+  width: 140px; height: 70px;
+  position: relative;
+}
+.ball-half-top {
+  border-radius: 70px 70px 0 0;
+  overflow: hidden;
+}
+.ball-half-bottom {
+  border-radius: 0 0 70px 70px;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+/* 結果文字はカプセルの外・中央に浮かび上がる */
+#open-result-overlay {
+  position: fixed;
+  z-index: 400;
+  font-size: clamp(48px, 12vw, 100px);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.7), 0 0 40px rgba(255,255,255,0.4);
+  -webkit-text-stroke: 2px rgba(0,0,0,0.2);
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+  text-align: center;
+  line-height: 1.2;
+  transform: translate(-50%, -50%);
+}
+.ball-shine {
+  position: absolute; top: 10%; left: 16%;
+  width: 32%; height: 32%;
+  background: rgba(255,255,255,0.7);
+  border-radius: 50%;
+  transform: rotate(-30deg);
+}
+.ball-shine2 {
+  position: absolute; top: 20%; left: 40%;
+  width: 15%; height: 15%;
+  background: rgba(255,255,255,0.5);
+  border-radius: 50%;
+}
+#open-top {
+  transition: transform 0.55s cubic-bezier(0.34,1.56,0.64,1);
+  transform-origin: bottom center;
+}
+#open-result {
+  font-size: clamp(22px, 5vw, 38px);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 3px 10px rgba(0,0,0,0.6), 0 0 20px rgba(255,255,255,0.3);
+  opacity: 0;
+  transition: opacity 0.5s;
+  text-align: center;
+  line-height: 1.2;
+  padding: 0 8px;
+  -webkit-text-stroke: 1px rgba(0,0,0,0.2);
+}
+
+/* ===== 結果表示 ===== */
+/* 結果表示エリアは非表示 */
+#result-display { display: none !important; }
+
+/* ===== ボタン ===== */
+#startBtn {
+  background: linear-gradient(180deg,#ff7090 0%,#c43050 100%);
+  color:#fff; border:none;
+  padding:1.2rem 2rem; font-size:clamp(1.8rem,4vw,3rem);
+  font-weight:700; letter-spacing:0.2em;
+  border-radius:40px; cursor:pointer;
+  box-shadow:0 5px 0 #8b1030, 0 8px 24px rgba(180,30,60,0.3);
+  font-family:'BIZ UDGothic','Meiryo',sans-serif;
+  width: 100%; text-align: center;
+}
+#startBtn:active { transform:translateY(4px); box-shadow:0 1px 0 #8b1030; }
+#startBtn:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
+#remaining-label {
+  font-size: clamp(1.2rem, 3.5vw, 1.8rem);
+  font-weight: 700;
+  color: #c43050;
+  letter-spacing: 0.05em;
+  min-height: 1.8em;
+  text-align: center;
+}
+
+/* ===== 編集 ===== */
+#editBtn {
+  background:rgba(255,255,255,0.75); border:2px solid #f0b0c0;
+  color:#c43050; padding:0.65rem 2.2rem; font-size:1rem; font-weight:700;
+  border-radius:20px; cursor:pointer; width:100%; text-align:center;
+  font-family:'BIZ UDGothic','Meiryo',sans-serif;
+}
+#editPanel {
+  display:none; width:min(90vw,380px);
+  background:#fff; border:3px solid #f0b0c0;
+  border-radius:16px; padding:1.4rem;
+  box-shadow:4px 4px 0 #f0b0c0;
+}
+#editPanel > p { font-size:13px; font-weight:700; color:#c43050; margin-bottom:1rem; }
+#itemList { list-style:none; max-height:200px; overflow-y:auto; margin-bottom:0.5rem; }
+.item-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.item-row input {
+  flex:1; padding:7px 10px; font-size:14px; font-weight:700;
+  font-family:'BIZ UDGothic','Meiryo',sans-serif;
+  border:2px solid #f0b0c0; border-radius:8px; background:#fff9fb; color:#333; outline:none;
+}
+.item-row .del { background:none; border:none; color:#f0b0c0; font-size:20px; cursor:pointer; }
+#addItemBtn {
+  width:100%; border:2px dashed #f0b0c0; background:none;
+  color:#c43050; padding:0.45rem; font-size:0.85rem; font-weight:700;
+  border-radius:8px; cursor:pointer; margin-top:0.3rem;
+  font-family:'BIZ UDGothic','Meiryo',sans-serif;
+}
+#applyItemBtn {
+  width:100%; background:#c43050; color:#fff; border:none;
+  padding:0.7rem; font-size:0.9rem; font-weight:700;
+  border-radius:8px; cursor:pointer; margin-top:0.7rem;
+  font-family:'BIZ UDGothic','Meiryo',sans-serif;
+}
+
+/* スマホは縦並び */
+@media (max-width: 700px) {
+  body { padding: 1.5rem 1rem; height: auto; min-height: 100vh; overflow-y: auto; }
+  #page-layout { flex-direction: column; align-items: center; gap: 1.5rem; height: auto; }
+  #left-panel { align-items: center; width: 100%; }
+  h1 { font-size: clamp(48px, 12vw, 80px); text-align: center; }
+  #machine-wrap { width: min(85vw, 320px); }
+  #startBtn { width: 100%; }
+  #remaining-label { text-align: center; }
+}
+
+/* ===== 紙吹雪：ひらひら ===== */
+.confetti {
+  position:fixed; pointer-events:none; z-index:400;
+  animation: confettiFloat linear forwards;
+}
+@keyframes confettiFloat {
+  0%   { transform:translateY(-30px) rotate(0deg) translateX(0px); opacity:1; }
+  25%  { transform:translateY(25vh) rotate(180deg) translateX(30px); }
+  50%  { transform:translateY(50vh) rotate(360deg) translateX(-20px); }
+  75%  { transform:translateY(75vh) rotate(540deg) translateX(25px); }
+  100% { transform:translateY(110vh) rotate(720deg) translateX(-15px); opacity:0; }
+}
+</style>
+</head>
+<body>
+
+<div id="page-layout">
+
+<!-- 左パネル：タイトル・ボタン・編集 -->
+<div id="left-panel">
+  <h1>ガチャポン</h1>
+
+  <!-- 結果 -->
+  <div id="result-display">
+    <span id="result-label">✨ 結果発表 ✨</span>
+    <div id="result-number"></div>
+  </div>
+
+  <button id="startBtn">まわす</button>
+  <div id="remaining-label"></div>
+  <button id="editBtn">✎ 中身を編集する</button>
+
+  <div id="editPanel">
+    <p>🎁 カプセルの中身を編集</p>
+    <ul id="itemList"></ul>
+    <button id="addItemBtn">＋ 追加する</button>
+    <button id="applyItemBtn">✓ 更新する</button>
+  </div>
+</div>
+
+<!-- 右：ガチャポンマシン -->
+<div id="machine-wrap">
+<svg id="machine-svg" viewBox="0 0 300 620" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;">
+  <defs>
+    <!-- ガラス球グラデ（青みがかった透明感） -->
+    <radialGradient id="glassGrad" cx="35%" cy="28%" r="70%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.95)"/>
+      <stop offset="25%" stop-color="rgba(210,235,255,0.7)"/>
+      <stop offset="60%" stop-color="rgba(180,215,245,0.3)"/>
+      <stop offset="100%" stop-color="rgba(150,195,235,0.05)"/>
+    </radialGradient>
+    <!-- ガラス球外枠グラデ -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0a0b0"/>
+      <stop offset="50%" stop-color="#c43050"/>
+      <stop offset="100%" stop-color="#8b1030"/>
+    </linearGradient>
+    <!-- ベースグラデ（丸みのある台） -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f07090"/>
+      <stop offset="40%" stop-color="#d04060"/>
+      <stop offset="100%" stop-color="#901030"/>
+    </linearGradient>
+    <!-- ベース光沢 -->
+    <linearGradient id="bodyShine" x1="0%" y1="0%" x2="40%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.4)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+    <!-- キャップグラデ -->
+    <radialGradient id="capGrad" cx="40%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#f08090"/>
+      <stop offset="100%" stop-color="#901030"/>
+    </radialGradient>
+    <!-- ダイヤルグラデ -->
+    <radialGradient id="dialGrad" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#eeeeff"/>
+      <stop offset="60%" stop-color="#c0c0d8"/>
+      <stop offset="100%" stop-color="#8888a8"/>
+    </radialGradient>
+    <!-- 出口トンネル -->
+    <radialGradient id="tunnelGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#440020"/>
+      <stop offset="100%" stop-color="#220010"/>
+    </radialGradient>
+    <!-- ボールカラー -->
+    <radialGradient id="ball1" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#ffb0c8"/><stop offset="100%" stop-color="#e05080"/>
+    </radialGradient>
+    <radialGradient id="ball2" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#b0e8d8"/><stop offset="100%" stop-color="#50b898"/>
+    </radialGradient>
+    <radialGradient id="ball3" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#ffe8a0"/><stop offset="100%" stop-color="#d8a020"/>
+    </radialGradient>
+    <radialGradient id="ball4" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#c8b8f8"/><stop offset="100%" stop-color="#7050d0"/>
+    </radialGradient>
+    <radialGradient id="ball5" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#a8d8f8"/><stop offset="100%" stop-color="#3080c0"/>
+    </radialGradient>
+    <radialGradient id="ball6" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#f8c0a0"/><stop offset="100%" stop-color="#d06020"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ===== 上部キャップ ===== -->
+  <ellipse cx="150" cy="52" rx="44" ry="14" fill="#8b1030"/>
+  <ellipse cx="150" cy="48" rx="44" ry="14" fill="url(#capGrad)"/>
+  <circle cx="150" cy="36" r="8" fill="#c43050"/>
+  <circle cx="150" cy="34" r="8" fill="url(#capGrad)"/>
+  <circle cx="150" cy="32" r="5" fill="#f08090"/>
+  <!-- キャップ縁 -->
+  <ellipse cx="150" cy="62" rx="55" ry="12" fill="#8b1030"/>
+  <ellipse cx="150" cy="60" rx="55" ry="12" fill="url(#rimGrad)"/>
+
+  <!-- ===== ガラス球（外縁） ===== -->
+  <circle cx="150" cy="175" r="118" fill="#8b1030"/>
+  <circle cx="150" cy="175" r="114" fill="#d04060"/>
+  <circle cx="150" cy="175" r="110" fill="#f0f4f8"/>
+
+  <!-- ===== ボール（球の中） ===== -->
+  <!-- ピンク -->
+  <circle cx="128" cy="155" r="30" fill="url(#ball1)"/>
+  <ellipse cx="119" cy="144" rx="9" ry="6" fill="rgba(255,255,255,0.65)" transform="rotate(-20,119,144)"/>
+  <!-- ミント -->
+  <circle cx="175" cy="148" r="28" fill="url(#ball2)"/>
+  <ellipse cx="167" cy="138" rx="8" ry="5" fill="rgba(255,255,255,0.65)" transform="rotate(-20,167,138)"/>
+  <!-- 黄 -->
+  <circle cx="150" cy="195" r="27" fill="url(#ball3)"/>
+  <ellipse cx="142" cy="185" rx="8" ry="5" fill="rgba(255,255,255,0.65)" transform="rotate(-20,142,185)"/>
+  <!-- 紫 -->
+  <circle cx="105" cy="185" r="25" fill="url(#ball4)"/>
+  <ellipse cx="97" cy="175" rx="7" ry="5" fill="rgba(255,255,255,0.65)" transform="rotate(-20,97,175)"/>
+  <!-- 青 -->
+  <circle cx="195" cy="183" r="26" fill="url(#ball5)"/>
+  <ellipse cx="187" cy="173" rx="7" ry="5" fill="rgba(255,255,255,0.65)" transform="rotate(-20,187,173)"/>
+  <!-- オレンジ -->
+  <circle cx="148" cy="145" r="22" fill="url(#ball6)"/>
+  <ellipse cx="141" cy="136" rx="6" ry="4" fill="rgba(255,255,255,0.6)" transform="rotate(-20,141,136)"/>
+  <!-- 小さいの追加 -->
+  <circle cx="120" cy="210" r="18" fill="url(#ball2)" opacity="0.9"/>
+  <circle cx="175" cy="210" r="17" fill="url(#ball1)" opacity="0.9"/>
+  <circle cx="150" cy="128" r="16" fill="url(#ball4)" opacity="0.9"/>
+
+  <!-- ガラスオーバーレイ -->
+  <circle cx="150" cy="175" r="110" fill="url(#glassGrad)"/>
+  <!-- 大きな光沢 -->
+  <ellipse cx="108" cy="115" rx="52" ry="36" fill="rgba(255,255,255,0.55)" transform="rotate(-15,108,115)"/>
+  <!-- 小さい光沢 -->
+  <ellipse cx="175" cy="105" rx="20" ry="13" fill="rgba(255,255,255,0.4)" transform="rotate(-10,175,105)"/>
+
+  <!-- ===== ガラス球→ベースのネック ===== -->
+  <rect x="118" y="283" width="64" height="28" rx="5" fill="#8b1030"/>
+  <rect x="122" y="285" width="56" height="24" rx="4" fill="#c43050"/>
+
+  <!-- ===== ベース本体（丸みある台形） ===== -->
+  <path d="M60,308 Q55,308 50,315 L38,560 Q36,572 50,575 L250,575 Q264,572 262,560 L250,315 Q245,308 240,308 Z" fill="#8b1030"/>
+  <path d="M65,308 Q60,308 56,314 L44,557 Q42,568 56,571 L244,571 Q258,568 256,557 L244,314 Q240,308 235,308 Z" fill="url(#bodyGrad)"/>
+  <!-- 光沢 -->
+  <path d="M75,308 Q70,308 67,314 L55,557 Q53,565 65,568 L155,568 L162,314 Q155,308 145,308 Z" fill="url(#bodyShine)" opacity="0.5"/>
+
+  <!-- ===== ダイヤル ===== -->
+  <g id="dial-group">
+    <ellipse cx="150" cy="430" rx="48" ry="20" fill="#440020" opacity="0.3"/>
+    <circle cx="150" cy="420" r="46" fill="#6a3050"/>
+    <circle cx="150" cy="420" r="42" fill="url(#dialGrad)"/>
+    <!-- 溝 -->
+    <ellipse cx="150" cy="420" rx="30" ry="10" fill="none" stroke="rgba(100,80,120,0.5)" stroke-width="3"/>
+    <ellipse cx="150" cy="420" rx="18" ry="6" fill="none" stroke="rgba(100,80,120,0.4)" stroke-width="2"/>
+    <circle cx="150" cy="420" r="6" fill="#9080a8"/>
+    <!-- ハイライト -->
+    <ellipse cx="136" cy="408" rx="14" ry="9" fill="rgba(255,255,255,0.5)" transform="rotate(-20,136,408)"/>
+  </g>
+
+  <!-- ===== 出口トンネル ===== -->
+  <!-- トンネル外枠 -->
+  <path d="M100,510 Q100,490 150,490 Q200,490 200,510 L200,555 Q200,565 150,565 Q100,565 100,555 Z" fill="#6a1025"/>
+  <!-- トンネル内側（アーチ型） -->
+  <path d="M110,515 Q110,498 150,498 Q190,498 190,515 L190,553 Q190,560 150,560 Q110,560 110,553 Z" fill="url(#tunnelGrad)"/>
+  <!-- トンネル縁上部 -->
+  <path d="M100,515 Q100,495 150,495 Q200,495 200,515" fill="none" stroke="#f08090" stroke-width="4"/>
+
+  <!-- ===== 足台 ===== -->
+  <ellipse cx="150" cy="580" rx="120" ry="15" fill="#6a1025"/>
+  <ellipse cx="150" cy="577" rx="120" ry="14" fill="url(#rimGrad)"/>
+  <ellipse cx="150" cy="573" rx="110" ry="10" fill="#d04060"/>
+  <!-- 台の光沢 -->
+  <ellipse cx="110" cy="573" rx="45" ry="5" fill="rgba(255,255,255,0.25)"/>
+
+  <!-- 底台 -->
+  <ellipse cx="150" cy="592" rx="130" ry="14" fill="#5a0820"/>
+  <ellipse cx="150" cy="589" rx="130" ry="13" fill="url(#rimGrad)"/>
+</svg>
+</div><!-- end machine-wrap -->
+
+</div><!-- end page-layout -->
+
+<!-- 転がるボール -->
+<div id="rolling-ball"></div>
+
+<!-- 開くボール（大きく前に飛び出す） -->
+<div id="open-ball-wrap">
+  <div class="ball-half ball-half-top" id="open-top">
+    <div class="ball-shine"></div>
+    <div class="ball-shine2"></div>
+  </div>
+  <div class="ball-half ball-half-bottom" id="open-bottom">
+  </div>
+</div>
+
+<!-- 結果文字オーバーレイ（カプセルが完全に開いてから表示） -->
+<div id="open-result-overlay"></div>
+
+<script>
+let items = ["1番","2番","3番","4番","5番","6番","7番","8番"];
+let remainingItems = [...items]; // まだ出ていないアイテム
+
+const BALL_COLORS = [
+  ['#ffb0c8','#e05080'],['#b0e8d8','#50b898'],['#ffe8a0','#d8a020'],
+  ['#c8b8f8','#7050d0'],['#a8d8f8','#3080c0'],['#f8c0a0','#d06020'],
+  ['#f8d0e0','#c04070'],['#c8f0d8','#30a860']
+];
+
+let dialAngle = 0;
+let isRunning = false;
+
+const dialGroup = document.getElementById('dial-group');
+const startBtn = document.getElementById('startBtn');
+const rollingBall = document.getElementById('rolling-ball');
+const openBallWrap = document.getElementById('open-ball-wrap');
+const openTop = document.getElementById('open-top');
+const openBottom = document.getElementById('open-bottom');
+const openResult = document.getElementById('open-result-overlay');
+const resultDisplay = document.getElementById('result-display');
+const resultNumber = document.getElementById('result-number');
+const machineWrap = document.getElementById('machine-wrap');
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// ダイヤル回転
+async function spinDial(){
+  const total = 1080 + Math.random()*720;
+  const dur = 1400;
+  const start = performance.now();
+  const startAngle = dialAngle;
+  await new Promise(r=>{
+    function frame(now){
+      const t = Math.min((now-start)/dur,1);
+      const ease = t<0.5?2*t*t:-1+(4-2*t)*t;
+      dialAngle = startAngle + total*ease;
+      dialGroup.style.transform = `rotate(${dialAngle}deg)`;
+      dialGroup.style.transformOrigin = '150px 420px';
+      if(t<1) requestAnimationFrame(frame); else r();
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+// ボール転がり
+async function rollBall(colorIdx){
+  const [c1,c2] = BALL_COLORS[colorIdx%BALL_COLORS.length];
+  rollingBall.style.background = `radial-gradient(circle at 35% 30%, ${c1}, ${c2})`;
+  rollingBall.style.boxShadow = `4px 8px 20px rgba(0,0,0,0.3), inset -6px -6px 16px rgba(0,0,0,0.2), inset 6px 6px 16px rgba(255,255,255,0.4)`;
+
+  const machineRect = machineWrap.getBoundingClientRect();
+  const startX = machineRect.left + machineRect.width*0.5 - 45;
+  const startY = machineRect.top + machineRect.height*0.82;
+
+  rollingBall.style.left = startX+'px';
+  rollingBall.style.top = startY+'px';
+  rollingBall.style.display = 'block';
+  rollingBall.style.opacity = '1';
+  rollingBall.style.transition = 'none';
+  rollingBall.style.transform = 'rotate(0deg) scale(1)';
+
+  const endX = startX + 60;
+  const endY = window.innerHeight*0.46;
+  const dur = 650;
+  const start = performance.now();
+
+  await new Promise(r=>{
+    function frame(now){
+      const t = Math.min((now-start)/dur,1);
+      const ease = 1-(1-t)*(1-t);
+      const x = startX+(endX-startX)*ease;
+      const y = startY+(endY-startY)*ease + Math.sin(t*Math.PI)*(-25);
+      const rot = t*360;
+      rollingBall.style.left = x+'px';
+      rollingBall.style.top = y+'px';
+      rollingBall.style.transform = `rotate(${rot}deg)`;
+      if(t<1) requestAnimationFrame(frame); else r();
+    }
+    requestAnimationFrame(frame);
+  });
+
+  await sleep(150);
+  rollingBall.style.transition = 'opacity 0.3s';
+  rollingBall.style.opacity = '0';
+  await sleep(300);
+  rollingBall.style.display = 'none';
+  rollingBall.style.transition = '';
+}
+
+// ボールが大きく前に飛び出して開く
+async function openBall(item, colorIdx){
+  const [c1,c2] = BALL_COLORS[colorIdx%BALL_COLORS.length];
+
+  openTop.style.background = `radial-gradient(circle at 35% 30%, ${c1}, ${c2})`;
+  openTop.style.boxShadow = `inset -4px -4px 12px rgba(0,0,0,0.15), inset 4px 4px 12px rgba(255,255,255,0.3)`;
+  openBottom.style.background = `radial-gradient(circle at 65% 70%, ${c2}, ${c1}cc)`;
+  openBottom.style.boxShadow = `inset -4px 4px 12px rgba(0,0,0,0.15)`;
+
+  openResult.textContent = item;
+  openResult.style.opacity = '0';
+  openTop.style.transform = 'translateY(0) rotate(0deg)';
+
+  // ガチャポンマシンの前（出口付近）に配置
+  const machineRect = machineWrap.getBoundingClientRect();
+  const cx = machineRect.left + machineRect.width * 0.5 - 70;
+  const cy = machineRect.top + machineRect.height * 0.72 - 70;
+
+  openBallWrap.style.left = cx+'px';
+  openBallWrap.style.top = cy+'px';
+  openBallWrap.style.display = 'flex';
+  openBallWrap.style.opacity = '1';
+  openBallWrap.style.transform = 'scale(0.2)';
+  openBallWrap.style.filter = 'drop-shadow(0 12px 30px rgba(0,0,0,0.35))';
+
+  await sleep(50);
+
+  // 前に飛び出してくる！
+  openBallWrap.style.transition = 'transform 0.65s cubic-bezier(0.34,1.56,0.64,1)';
+  openBallWrap.style.transform = 'scale(1.5)';
+
+  await sleep(500);
+
+  // パカッと開く
+  openTop.style.transition = 'transform 0.55s cubic-bezier(0.34,1.56,0.64,1)';
+  openTop.style.transform = 'translateY(-55px) rotate(-30deg) translateX(-15px)';
+
+  // カプセルが完全に開くまで待つ
+  await sleep(600);
+
+  // 完全に開いてから文字をカプセルの中央（開いた場所）に表示
+  // カプセルの現在位置に合わせて文字を配置
+  const bRect = openBallWrap.getBoundingClientRect();
+  openResult.style.position = 'fixed';
+  openResult.style.left = (bRect.left + bRect.width/2) + 'px';
+  openResult.style.top = (bRect.top + bRect.height * 0.65) + 'px';
+  openResult.style.transform = 'translate(-50%, -50%)';
+  openResult.style.transition = 'opacity 0.45s';
+  openResult.style.opacity = '1';
+
+  // 文字が出た瞬間に紙吹雪！
+  launchConfetti();
+
+  await sleep(5000);
+
+  // フェードアウト（文字も同時に消す）
+  openResult.style.transition = 'opacity 0.4s';
+  openResult.style.opacity = '0';
+  openBallWrap.style.transition = 'opacity 0.5s, transform 0.5s';
+  openBallWrap.style.opacity = '0';
+  openBallWrap.style.transform = 'scale(1.8)';
+  await sleep(500);
+  openBallWrap.style.display = 'none';
+  openBallWrap.style.transition = '';
+  openTop.style.transition = '';
+}
+
+// 紙吹雪（ゆっくりひらひら・3倍）
+function launchConfetti(){
+  const colors=['#ff9ab8','#ffd060','#80e0c0','#b0c0ff','#d0a0f8','#ffa080','#fff','#80d8f0'];
+  const shapes=['rect','circle','thin'];
+  for(let i=0;i<135;i++){
+    const el=document.createElement('div');
+    el.className='confetti';
+    el.style.left=Math.random()*100+'vw';
+    el.style.top='-30px';
+    const color=colors[Math.floor(Math.random()*colors.length)];
+    el.style.background=color;
+    const shape=shapes[Math.floor(Math.random()*shapes.length)];
+    if(shape==='circle'){
+      const s=8+Math.random()*10;
+      el.style.width=s+'px'; el.style.height=s+'px'; el.style.borderRadius='50%';
+    } else if(shape==='thin'){
+      el.style.width=(3+Math.random()*4)+'px';
+      el.style.height=(12+Math.random()*12)+'px';
+      el.style.borderRadius='2px';
+    } else {
+      el.style.width=(8+Math.random()*10)+'px';
+      el.style.height=(6+Math.random()*8)+'px';
+      el.style.borderRadius='2px';
+    }
+    el.style.animationDuration=(3+Math.random()*3)+'s';
+    el.style.animationDelay=(Math.random()*1.5)+'s';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),7000);
+  }
+}
+
+// メイン
+async function doGacha(){
+  if(isRunning) return;
+
+  // 全部出たらリセット
+  if(remainingItems.length===0){
+    remainingItems = [...items];
+  }
+
+  isRunning=true;
+  startBtn.disabled=true;
+  resultDisplay.classList.remove('show');
+
+  // remainingItemsからランダムに1つ選んで除外
+  const pickIdx = Math.floor(Math.random()*remainingItems.length);
+  const chosen = remainingItems[pickIdx];
+  remainingItems.splice(pickIdx, 1);
+
+  // カラーインデックスはitemsの元の位置に合わせる
+  const colorIdx = items.indexOf(chosen) >= 0 ? items.indexOf(chosen) : pickIdx;
+
+  await spinDial();
+  await sleep(100);
+  await rollBall(colorIdx);
+  await openBall(chosen, colorIdx);
+
+  resultNumber.textContent=chosen;
+  resultDisplay.classList.add('show');
+
+  // 残り枚数をボタン下に表示
+  const remainingLabel = document.getElementById('remaining-label');
+  if(remainingItems.length===0){
+    remainingLabel.textContent='全員完了！もう一回まわすとリセットされます';
+  } else {
+    remainingLabel.textContent=`残り ${remainingItems.length} 人`;
+  }
+  startBtn.textContent='まわす';
+  startBtn.disabled=false;
+  isRunning=false;
+}
+
+startBtn.onclick=doGacha;
+
+function renderItemList(){
+  const ul=document.getElementById('itemList'); ul.innerHTML='';
+  items.forEach((t,i)=>{
+    const li=document.createElement('li'); li.className='item-row';
+    const inp=document.createElement('input');
+    inp.type='text'; inp.value=t; inp.maxLength=10; inp.id='ii'+i;
+    const del=document.createElement('button'); del.className='del'; del.textContent='×';
+    del.onclick=()=>{ if(items.length<=2) return; items.splice(i,1); renderItemList(); };
+    li.appendChild(inp); li.appendChild(del); ul.appendChild(li);
+  });
+}
+
+document.getElementById('editBtn').onclick=()=>{
+  const p=document.getElementById('editPanel');
+  p.style.display=p.style.display==='none'?'block':'none';
+  if(p.style.display==='block') renderItemList();
+};
+document.getElementById('addItemBtn').onclick=()=>{
+  if(items.length>=20) return;
+  items.push('新しい'); renderItemList();
+  const last=document.getElementById('ii'+(items.length-1));
+  last.focus(); last.select();
+};
+document.getElementById('applyItemBtn').onclick=()=>{
+  const inputs=document.querySelectorAll('#itemList input');
+  const next=[...inputs].map(i=>i.value.trim()).filter(Boolean);
+  if(next.length<2) return;
+  items=next;
+  remainingItems=[...items];
+  document.getElementById('editPanel').style.display='none';
+  resultDisplay.classList.remove('show');
+};
+</script>
+</body>
+</html>
